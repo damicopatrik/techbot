@@ -12,7 +12,6 @@ API_HASH      = "1831850405c78603de836ca168c6bfc7"
 BOT_TOKEN     = "8450459959:AAFHOfuGK21O2HPtawwTGLxJca92VoGhbJw"
 CHANNEL_OUT   = "@techprezzibassit"
 AFFILIATE_TAG = "techprezzibas-21"
-MIN_DISCOUNT  = 20
 HOT_DISCOUNT  = 40
 
 SOURCE_CHANNELS = [
@@ -21,21 +20,6 @@ SOURCE_CHANNELS = [
     "ScontiTech",
     "offertepuntotech",
     "offertesmartworld",
-]
-```
-
-Salva, poi nel terminale:
-```
-git add .
-git commit -m "aggiunti nuovi canali attivi"
-git push]
-```
-
-Salva il file, poi nel terminale esegui:
-```
-git add .
-git commit -m "aggiunto canale sorgente"
-git push
 ]
 # ────────────────────────────────────────────────────────
 
@@ -64,7 +48,7 @@ def has_amazon_link(text):
 def format_message(text, discount):
     if discount >= HOT_DISCOUNT:
         header = f"🔥🔥 OFFERTA BOMBA -{discount}%\n\n"
-    elif discount >= MIN_DISCOUNT:
+    elif discount > 0:
         header = f"🔥 Offerta -{discount}%\n\n"
     else:
         header = "🛒 Offerta tech\n\n"
@@ -77,10 +61,9 @@ async def main():
 
     await client.start()
     print("=" * 50)
-    print("  Relay Bot — avviato")
+    print("  Relay Bot v3 — pubblica tutto")
     print(f"  Monitorando {len(SOURCE_CHANNELS)} canali sorgente")
-    print(f"  Soglia minima  : -{MIN_DISCOUNT}%")
-    print(f"  Soglia hot     : -{HOT_DISCOUNT}%")
+    print(f"  Soglia hot     : -{HOT_DISCOUNT}% (doppia fiamma)")
     print("=" * 50)
 
     @client.on(events.NewMessage(chats=SOURCE_CHANNELS))
@@ -96,9 +79,6 @@ async def main():
             return
 
         discount = extract_discount(text)
-        if discount < MIN_DISCOUNT and discount != 0:
-            return
-
         new_text = replace_affiliate(text)
         formatted = format_message(new_text, discount)
 
@@ -111,7 +91,7 @@ async def main():
             )
             already_sent.add(msg_id)
             emoji = "🔥🔥" if discount >= HOT_DISCOUNT else "🔥"
-            print(f"[{datetime.now().strftime('%H:%M')}] {emoji} -{discount}% | {text[:50]}")
+            print(f"[{datetime.now().strftime('%H:%M')}] {emoji} | {text[:60]}")
         except Exception as e:
             print(f"Errore invio: {e}")
 
