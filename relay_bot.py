@@ -20,6 +20,7 @@ SOURCE_CHANNELS = [
     "ScontiTech",
     "offertepuntotech",
     "offertesmartworld",
+    "TempoDiScontiUsato",
 ]
 # ────────────────────────────────────────────────────────
 
