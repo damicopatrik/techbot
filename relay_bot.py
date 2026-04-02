@@ -21,6 +21,15 @@ SOURCE_CHANNELS = [
     "OfferteTech",
     "AmazonItOfferte",
     "offerteitalia",
+    "Offerte_Tech_IPhone_Pc_Cellulari",
+]
+```
+
+Salva il file, poi nel terminale esegui:
+```
+git add .
+git commit -m "aggiunto canale sorgente"
+git push
 ]
 # ────────────────────────────────────────────────────────
 
