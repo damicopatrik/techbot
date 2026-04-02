@@ -16,13 +16,19 @@ MIN_DISCOUNT  = 20
 HOT_DISCOUNT  = 40
 
 SOURCE_CHANNELS = [
-    "sconticyber",
-    "amazononoffers",
-    "OfferteTech",
-    "AmazonItOfferte",
     "offerteitalia",
     "Offerte_Tech_IPhone_Pc_Cellulari",
+    "ScontiTech",
+    "offertepuntotech",
+    "offertesmartworld",
 ]
+```
+
+Salva, poi nel terminale:
+```
+git add .
+git commit -m "aggiunti nuovi canali attivi"
+git push]
 ```
 
 Salva il file, poi nel terminale esegui:
