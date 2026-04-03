@@ -6,7 +6,7 @@ from telegram import Bot
 from datetime import datetime
 
 # ── CONFIGURAZIONE ──────────────────────────────────────
-SESSION_STRING = "1BJWap1sBuy_N9VInF2R8ghzJVJ5cpgPHSqmihOpDshsL_TIUJLr2NHyHCNWZ8xYjy-sePCK6q6srGoN88IZ6iSJHmigV2mRklOx3aqi0lCcYg_vzGKZbYAzgllCBMR36bnmNh9MnuUu6LPSR1n3b1ynwFywxo4k5GmqQrWxhDU983COLDCkXgMdXWFXvUndVEa6KBvp6GFOVs-wnU0zMGHYdUs-PXwFAJ3h9SuTNzd7O0tBSkCAFAXhA95C-nDE2UktozsFM3LKGCUnvdSrNbpdSjNhlGgjYViFKuN3ekU9pA0bFiw-kracgNfGkmIyAxK-U0Syv4XjaaweXfYn9q3L5HqRbLzI="
+SESSION_STRING = "1BJWap1sBuxxBlgCdHYYngqVHtkPCQ7Bcc3ML-2IsYhdp0RnFbI8L4R8GtUmgCCjOaNriFHzCiM3NGvkVL-JBBd3IVKWzw9DpqpUhy6DNUDbOWzHbbsmGv2t8JGLOdiODMDVbnRbKLsD7PK0n5sF7gxffLXskC3cGonQJTcRZnpZXdT4EO0JuAzlFi3_V2Kcsk-pxIJ9cV1IIITXIOQIW86uJ6BgJkun4HmvpLM0brq7Qdxuf2oqtEkFWjsfwuS8hLfEajAIVw5h4rci8NoleK7LUdnaNPPUKmTjnHedZ5nl9U0Eq9DD3PMFmiGePHG1SYWhbKPHq0KuuWfJmof1U4pExwRgSj3Y="
 API_ID        = 31137651
 API_HASH      = "1831850405c78603de836ca168c6bfc7"
 BOT_TOKEN     = "8450459959:AAFHOfuGK21O2HPtawwTGLxJca92VoGhbJw"
@@ -15,73 +15,147 @@ AFFILIATE_TAG = "techprezzibas-21"
 HOT_DISCOUNT  = 40
 
 SOURCE_CHANNELS = [
-    "offerteitalia",
-    "Offerte_Tech_IPhone_Pc_Cellulari",
-    "ScontiTech",
-    "offertepuntotech",
-    "offertesmartworld",
-    "TempoDiScontiUsato",
+    1415117147,
+    1130941839,
+    1063843030,
+    1341651997,
+    1279101491,
 ]
 # ────────────────────────────────────────────────────────
 
 already_sent = set()
 
-def replace_affiliate(text):
-    text = re.sub(r'tag=[a-zA-Z0-9_-]+-\d+', f'tag={AFFILIATE_TAG}', text)
-    def add_tag(match):
-        url = match.group(0)
-        if 'tag=' not in url:
-            sep = '&' if '?' in url else '?'
-            return f"{url}{sep}tag={AFFILIATE_TAG}"
-        return url
-    text = re.sub(r'https?://(?:www\.)?amazon\.it/\S+', add_tag, text)
-    return text
+# Righe da rimuovere
+JUNK_PATTERNS = [
+    r'.*aliensales\.it.*',
+    r'.*come.si.usa.*coupon.*',
+    r'.*[Ss]egnalata su.*',
+    r'.*CosmoTech.*',
+    r'.*disclaimer.*',
+    r'.*\[#Ad.*',
+    r'.*affiliat.*',
+    r'.*t\.me/\+.*',
+    r'.*ofclub\.click.*',
+    r'.*Come si usa.*',
+    r'.*per info.*',
+    r'.*canale.*ufficiale.*',
+]
+
+def clean_text(text):
+    lines = text.split('\n')
+    cleaned = []
+    for line in lines:
+        skip = False
+        for pattern in JUNK_PATTERNS:
+            if re.match(pattern, line, re.IGNORECASE):
+                skip = True
+                break
+        if not skip:
+            cleaned.append(line)
+    result = re.sub(r'\n{3,}', '\n\n', '\n'.join(cleaned))
+    return result.strip()
+
+def extract_amazon_url(text):
+    match = re.search(r'https?://(?:www\.)?amazon\.it/\S+', text)
+    return match.group(0) if match else None
+
+def add_affiliate(url):
+    url = re.sub(r'[?&]tag=[^&\s]+', '', url)
+    url = url.rstrip('?&')
+    sep = '&' if '?' in url else '?'
+    return f"{url}{sep}tag={AFFILIATE_TAG}"
+
+def extract_prices(text):
+    prices = re.findall(r'(\d+(?:[.,]\d+)?)\s*€|€\s*(\d+(?:[.,]\d+)?)', text)
+    found = []
+    for p in prices:
+        val = p[0] or p[1]
+        found.append(float(val.replace(',', '.')))
+    return sorted(set(found))
 
 def extract_discount(text):
     match = re.search(r'-\s*(\d+)\s*%|(\d+)\s*%\s*(?:di\s*)?sconto', text, re.IGNORECASE)
     if match:
         return int(match.group(1) or match.group(2))
+    prices = extract_prices(text)
+    if len(prices) >= 2:
+        original = max(prices)
+        current = min(prices)
+        if original > current:
+            return int(((original - current) / original) * 100)
     return 0
 
-def has_amazon_link(text):
-    return bool(re.search(r'amazon\.it', text, re.IGNORECASE))
+def extract_title(text):
+    for line in text.split('\n'):
+        line = line.strip()
+        line = re.sub(r'[_*`]', '', line)
+        if line and len(line) > 5 and not line.startswith('http'):
+            return line
+    return ""
 
-def format_message(text, discount):
+def format_message(original_text, amazon_url):
+    cleaned = clean_text(original_text)
+    discount = extract_discount(cleaned)
+    prices = extract_prices(cleaned)
+    title = extract_title(cleaned)
+    affiliate_url = add_affiliate(amazon_url)
+
     if discount >= HOT_DISCOUNT:
-        header = f"🔥🔥 OFFERTA BOMBA -{discount}%\n\n"
+        header = f"🔥🔥 <b>OFFERTA BOMBA -{discount}%</b>"
     elif discount > 0:
-        header = f"🔥 Offerta -{discount}%\n\n"
+        header = f"🔥 <b>Offerta -{discount}%</b>"
     else:
-        header = "🛒 Offerta tech\n\n"
+        header = "🛒 <b>Offerta Tech</b>"
+
+    price_line = ""
+    if len(prices) >= 2:
+        current = min(prices)
+        original = max(prices)
+        price_line = f"\n💰 <b>{current:.2f}€</b>  <s>{original:.2f}€</s>"
+    elif len(prices) == 1:
+        price_line = f"\n💰 <b>{prices[0]:.2f}€</b>"
+
+    title_line = f"\n\n🏷 {title}" if title else ""
+    link_line = f"\n\n👉 <a href='{affiliate_url}'>Apri su Amazon</a>"
     footer = "\n\n#tech #offerta #amazon #elettronica"
-    return header + text + footer
+
+    return header + price_line + title_line + link_line + footer
 
 async def main():
     bot = Bot(token=BOT_TOKEN)
-    client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+    client = TelegramClient(
+        StringSession(SESSION_STRING),
+        API_ID,
+        API_HASH,
+        catch_up=True
+    )
 
     await client.start()
+    client.flood_sleep_threshold = 60
     print("=" * 50)
-    print("  Relay Bot v3 — pubblica tutto")
+    print("  Relay Bot v6 — formato pulito")
     print(f"  Monitorando {len(SOURCE_CHANNELS)} canali sorgente")
-    print(f"  Soglia hot     : -{HOT_DISCOUNT}% (doppia fiamma)")
+    print(f"  Soglia hot     : -{HOT_DISCOUNT}%")
     print("=" * 50)
 
-    @client.on(events.NewMessage(chats=SOURCE_CHANNELS))
+    @client.on(events.NewMessage(chats=SOURCE_CHANNELS, incoming=True))
     async def handler(event):
         msg = event.message
         text = msg.text or ""
 
-        if not text or not has_amazon_link(text):
+        if not text:
+            return
+
+        amazon_url = extract_amazon_url(text)
+        if not amazon_url:
+            print(f"[SKIP] Nessun link Amazon")
             return
 
         msg_id = f"{event.chat_id}_{msg.id}"
         if msg_id in already_sent:
             return
 
-        discount = extract_discount(text)
-        new_text = replace_affiliate(text)
-        formatted = format_message(new_text, discount)
+        formatted = format_message(text, amazon_url)
 
         try:
             await bot.send_message(
@@ -91,10 +165,11 @@ async def main():
                 disable_web_page_preview=False
             )
             already_sent.add(msg_id)
+            discount = extract_discount(text)
             emoji = "🔥🔥" if discount >= HOT_DISCOUNT else "🔥"
-            print(f"[{datetime.now().strftime('%H:%M')}] {emoji} | {text[:60]}")
+            print(f"[INVIATO] {emoji} -{discount}% | {text[:50]}")
         except Exception as e:
-            print(f"Errore invio: {e}")
+            print(f"[ERRORE] {e}")
 
     print("In ascolto... (CTRL+C per fermare)")
     await client.run_until_disconnected()
